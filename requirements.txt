@@ -1,0 +1,10 @@
+matplotlib
+numpy
+tqdm
+torch
+torchvision
+lightning
+tiatoolbox
+tensorboard
+pandas
+streamlit

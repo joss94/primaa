@@ -1,0 +1,9 @@
+services:
+  primaa:
+    image: primaa/latest
+    build: .
+    volumes:
+      # - /Users/josselin/Downloads/primaa:/data
+      - ./:/repo
+    ports:
+      - 8501:8501

@@ -43,23 +43,34 @@ class WSIParser:
             return None
 
         slide = WSIReader.open(path)
-        target_res = 20
         tile_size = 256
+
+        # Size of a 1x zoom image
         final_size = slide.slide_dimensions(1.0, 'power')
+
+        # Size of a 20x zoom image
+        target_res = 20
         image_size = slide.slide_dimensions(target_res, 'power')
 
+        # Build the @D grid that corresponds to patches in image
         grid_sz = np.int32(np.array(image_size) / tile_size) + 1
         grid_indices = [(i,j) for i in range(grid_sz[0]) for j in range(grid_sz[1])]
 
+        # Final mask that will receive information about nuclei presence
         mask = np.zeros(np.flip(grid_sz), dtype=np.bool)
+
+        # Slide visualisation
+        thumb = slide.slide_thumbnail(1.0)
+
+        # Useful elements for ML pipeline
         transforms =  torchvision.transforms.Compose(get_preprocessing_transforms())
         batch_data = []
-
-        thumb = slide.slide_thumbnail(1.0)
 
         with torch.no_grad():
 
             for idx, (i, j) in enumerate(grid_indices):
+
+                # Extract the sub-image corresponding to the current patch
                 bounds = [
                     i*tile_size,
                     j*tile_size,
@@ -71,11 +82,15 @@ class WSIParser:
                 img = Image.fromarray(img)
                 img = img.convert("RGB")
 
+                # Do not process patches that are close to a full white image, to save some execution time
                 if np.min(img) > 200:
                     continue
 
+                # Append this patch to the curent batch
                 batch_data.append(((i, j), transforms(img)))
 
+                # When batch is complete, run it through the ML pipeline and update mask according to 
+                # the resulting classification
                 if len(batch_data) == self.batch_size or idx == len(grid_indices) - 1:
                     input_data = torch.stack([im for _, im in batch_data], dim=0).to(self.model.device)
                     res = self.model(input_data)
@@ -83,10 +98,12 @@ class WSIParser:
                     for label, data in zip(res, batch_data):
                         if label[0]<label[1]:
                             mask[data[0][1], data[0][0]] = 1
+
+                    # Clear the batch after it has been processed
                     batch_data.clear()
 
+                # Yield intermediary results to allow users to follow progression
                 progress = idx / len(grid_indices)
-
                 yield progress, np.array(Image.fromarray(mask).resize(final_size)), thumb
             
     def parse_slide(self, path):

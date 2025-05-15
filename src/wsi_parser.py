@@ -23,7 +23,20 @@ class WSIParser:
         self.batch_size = batch_size
 
     def parse_slide_progress(self, path):
-        """TODO"""
+        """Opens a WSI slide and runs the CNN on 20x zoom patches to find nuclei areas. 
+
+        This is a generator function in order to get intermediary results such as progress 
+        percentage and partial mask, for a better user experience when the processing time 
+        is too long.
+        
+        Args:
+            - path: Path to the WSI tile (.ndpi file)
+
+        Returns: 
+            - progress: Float between 0 and 1 to indicate progression
+            - mask: Numpy boolean array, at 1X zoom resolution, indicating nuclei presence
+            - thumb: Numpy array reprensenting the RGB image of the slide at 1X zoom level
+        """
 
         if not os.path.exists(path):
             print("Input file does not exist !")
@@ -77,6 +90,16 @@ class WSIParser:
                 yield progress, np.array(Image.fromarray(mask).resize(final_size)), thumb
             
     def parse_slide(self, path):
+        """Opens a WSI slide and runs the CNN on 20x zoom patches to find nuclei areas. 
+
+        Args:
+            - path: Path to the WSI tile (.ndpi file)
+
+        Returns: 
+            - mask: Numpy boolean array, at 1X zoom resolution, indicating nuclei presence
+            - thumb: Numpy array reprensenting the RGB image of the slide at 1X zoom level
+        """
+
         out = None
         print('Processing slide, this might take a while...')
         for progress, mask, thumb in self.parse_slide_progress(path):

@@ -32,14 +32,14 @@ class WSIDataset(data.Dataset):
 
     def __init__(self, data_dir, labels_filename):
         """
-        TODO: documentation
+        Builds a dataset from PNG tiles and CSV labels
         """
 
         super().__init__()
 
-        tiles_files = list(Path(data_dir).glob('*.png'))
-
         self.data_points = []
+
+        # Read all labels from CSV, and link it to its tile filepath if it exists
         annots = pd.read_csv(os.path.join(data_dir, labels_filename))
         for index, row in annots.iterrows():
             filepath = os.path.join(data_dir, f'tile_{row["tile_id"]}.png')
@@ -49,17 +49,23 @@ class WSIDataset(data.Dataset):
             nuclei = 0 if row['label'] == "NO_NUCLEUS" else 1
             self.data_points.append((filepath, torch.FloatTensor([1-nuclei, nuclei])))
 
-        self.class_rep = annots['label'].value_counts()
 
+        # Build the transformations that combine a preprocessing step (normalization)
+        # and a data augmentation (rotation)
         transforms = get_preprocessing_transforms()
         transforms.insert(0, torchvision.transforms.RandomRotation(degrees=180))
         self.transforms = torchvision.transforms.Compose(transforms)
 
+        # Compute the amount of data points in each class, it will be useful to handle class imbalance
+        # with a weighted loss
+        self.class_rep = annots['label'].value_counts()
 
     def __len__(self):
         return len(self.data_points)
 
     def __getitem__(self, idx):
+        """Returns a pair for each data point, made of a tensor representation the tile
+        and its matching label (NUCLEI is 1, NO_NUCLEUS is 0)"""
         path, label = self.data_points[idx]
 
         with open(path, "rb") as f: 
@@ -70,10 +76,11 @@ class WSIDataset(data.Dataset):
         return img, label
 
 class WSIModel(L.LightningModule):
-    """TODO: doc"""
+    """This is the PyTorch lightning module that will be in charge of handling the CNN"""
 
     def __init__(self):
-        """TODO"""
+        """Initializes the model (Resnet50 with pretrained weights) and the loss 
+        function (binary cross entropy)"""
 
         super().__init__()
         self.model = resnet50(weights=ResNet50_Weights.DEFAULT)
@@ -81,11 +88,12 @@ class WSIModel(L.LightningModule):
         self.loss_module = nn.BCEWithLogitsLoss(weight=torch.FloatTensor([1,1]))
 
     def set_class_weights(self, weights):
-        """TODO"""
+        """Apply weights to each class in the loss, to compensate for class imbalance in the dataset"""
         self.loss_module = nn.BCEWithLogitsLoss(weight=torch.FloatTensor(weights))
 
     def training_step(self, batch, batch_idx):
-        """TODO"""
+        """Standard PyTorch lightning method"""
+
         input_data, labels = batch
         preds = self.model(input_data).squeeze(dim=1)
         loss = self.loss_module(preds, labels)
@@ -95,7 +103,8 @@ class WSIModel(L.LightningModule):
         return loss
         
     def validation_step(self, batch, batch_idx):
-        """TODO"""
+        """Standard PyTorch lightning method"""
+
         input_data, labels = batch
         preds = self.model(input_data).squeeze(dim=1)
         loss = self.loss_module(preds, labels)
@@ -104,7 +113,7 @@ class WSIModel(L.LightningModule):
         self.log("val_acc", acc, prog_bar=False, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-        """TODO"""
+        """Standard PyTorch lightning method"""
 
         input_data, labels = batch
         preds = self.model(input_data).squeeze(dim=1)
@@ -112,21 +121,28 @@ class WSIModel(L.LightningModule):
         self.log("acc", acc)
 
     def forward(self, x):
-        """TODO"""
-
+        """Standard PyTorch lightning method"""
         return self.model(x).squeeze(dim=1)
         
     def configure_optimizers(self):
-        """TODO"""
+        """Standard PyTorch lightning method"""
 
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
-def train(data_dir, labels_filename, trainer=None):
-    """TODO"""
+def train(data_dir, labels_filename, model):
+    """Executes the training pipeline with a given dataset
 
-    torch.manual_seed(42) # For reproducability
+    Args:
+        - data_dir: path to the data directory containing the tiles and the csv file
+        - labels_filename: csv file to use for annotations. Can vary depending on whether we use pseudo labels or not
+        - model: the model to use. Should be an instance of WSIModel
+    """
 
+    # For reproducability
+    torch.manual_seed(42) 
+
+    # Build a dataset and split it in train/val/test subsets
     dataset = WSIDataset(data_dir, labels_filename)
     train_set, val_set, test_set = data.random_split(dataset, [0.7, 0.2, 0.1])
 
@@ -134,6 +150,8 @@ def train(data_dir, labels_filename, trainer=None):
     val_loader = data.DataLoader(val_set, batch_size=32, shuffle=False, num_workers=4, persistent_workers=True)
     test_loader = data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4)
 
+    # Define callbacks to retain the best model (minimal validation loss) and ensure the training stops if
+    # the validation loss has not been improving for some time
     save_best_callback = L.pytorch.callbacks.ModelCheckpoint(
         monitor='val_loss',
         filename='best',
@@ -150,25 +168,38 @@ def train(data_dir, labels_filename, trainer=None):
         early_stopping_callback
     ]
 
+    # Apply weights to the model loss function in order to compensate for class imbalance
     class_weights = [1.0, dataset.class_rep['NO_NUCLEUS']/dataset.class_rep['NUCLEI']]
+    model.set_class_weights(class_weights)
 
+    # Launch training
     logger = L.pytorch.loggers.tensorboard.TensorBoardLogger("tb_logs", name="WSIExperiments")
     trainer = L.Trainer(max_epochs=20, callbacks=callbacks, logger=logger)
-    model.set_class_weights(class_weights)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+    # Test the model on the test set
     trainer.test(dataloaders=test_loader)
 
 def generate_pseudo_labels(data_dir, labels_filename, model):
-    """TODO"""
+    """Generate automatic labels on unannotated data, based on the first training
+    
+    Args:
+        - data_dir: path to the data directory containing the tiles and the csv file
+        - labels_filename: csv file containing human annotations
+        - model: the model to use. Should be an instance of WSIModel
+        """
 
     model.eval()
     with torch.no_grad():
+
+        # Find ids of tiles that were not annotated by humans
         tiles = list(Path(data_dir).glob('*.png'))
         pattern = r'(.*)tile_(?P<id>\d+).png'
         tiles_ids = [int(re.match(pattern, str(f)).groupdict()['id']) for f in tiles]
         annots = pd.read_csv(os.path.join(data_dir, labels_filename))
         missing_annots = [tid for tid in tiles_ids if tid not in annots['tile_id'].values]
 
+        # Run model on each of those tiles, and add the resulting classification to the labels DataFrame
         transforms = torchvision.transforms.Compose(get_preprocessing_transforms())
         for tid in tqdm(missing_annots):
             f = os.path.join(data_dir, f'tile_{tid}.png')
@@ -179,12 +210,13 @@ def generate_pseudo_labels(data_dir, labels_filename, model):
             label = "NUCLEI" if res[0][1]>res[0][0] else "NO_NUCLEUS"
             annots.loc[len(annots)] = [tid, label]
 
+    # Save the pseudo labels for the second training
     annots.to_csv(os.path.join(data_dir, 'pseudo_labels.csv'), index=False)
 
 if __name__ == '__main__':
 
     data_dir = "/data/data/dataset_nuclei_tiles"
-    data_dir = "/Users/josselin/Downloads/primaa/data/dataset_nuclei_tiles"
+    # data_dir = "/Users/josselin/Downloads/primaa/data/dataset_nuclei_tiles"
 
     model = WSIModel()
 

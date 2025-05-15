@@ -7,34 +7,38 @@ It contains a model that has been train to detect patches that contain nuclei, i
 
 Because of the limitations on the size of the GitHub repositories, the weights are not included here. 
 Pleases download them here (link to my self-hosted Nextcloud instance): https://www.nextcloud.curlyspiker.fr/s/tpxzpN6NXbzJHsb
-Please copy the file to '''primaa/models/weights.ckpt'''
+Please copy the file to ```primaa/models/weights.ckpt```
 
 The application runs on Linux under Docker. 
 To install, please run:
 
-'''docker compose up'''
+```docker compose up```
 
 ## How to use
 
 The docker container will automatically start a container and open the port 8501 to access a streamlit application where the tool is ready to use. 
-You can then access '''http://localhost:8501''' and upload a .ndpi file into the application.
+You can then access ```http://localhost:8501``` and upload a .ndpi file into the application.
 The online app will display a thumbnail of the slide at the resolution 1X, and will progressively show the binary mask at the same time it is being calculate.
+
+![alt text](https://www.nextcloud.curlyspiker.fr/s/BYRCoxnpesNyX9a/download/Screenshot%202025-05-15%20at%2016.07.23.png "Demo app")
+
 
 It is also possible to use a CLI tool:
 
 First, find out the container name with 
 
-'''docker ps -a'''
+```docker ps -a```
 
 Then enter it with
 
-'''docker exec -it <container-name> bash'''
+```docker exec -it <container-name> bash```
 
-Then call the '''wsi_parser''' CLI tool:
+Then call the ```wsi_parser``` CLI tool:
 
-'''
+```
 cd /repo
 python3 src/wsi_parser.py -i <path_to_ndpi> -o <path_to_png_output> -bs <batch_size>
+```
 
 Note that the application runs on CPU due to lack of information about the hardware it will run on. You can modify the Dockerfile for GPU-support in order to decreast the running time. 
 
@@ -47,14 +51,14 @@ Training is done with PyTorch and PyTorch Lightning.
 
 To reproduce those results, first make sure to mount the proper docker volume in the compose file:
 
-'''
+```
     volumes:
       - <data_dir>:/data
-'''
+```
 
-where '''data_dir''' is a local directory containing the following structure 
+where ```data_dir``` is a local directory containing the following structure 
 
-'''
+```
 <data_dir>
     data
         data_nuclei_tiles
@@ -62,11 +66,11 @@ where '''data_dir''' is a local directory containing the following structure
             tile_0.png
             tile_1.png
             ...
-'''
+```
 
 Then use the training script from inside the docker container: 
 
-'''python3 src/train.py'''
+```python3 src/train.py```
 
 The training script follows a weakly supervised learning approach by following these steps:
 - Train on the labeled data (less than 50% of tiles)
@@ -81,13 +85,14 @@ The batch size can be adjusted manually in the code if desired.
 
 You can track the training experiments in tensorboard (you will need to redirect the port 6006 in Docker):
 
-'''
+```
 tensorboard --logdir=tb_logs/
-'''
+```
 
 ## Next steps
 
 Missing improvements:
 
 - Unit tests
-- 
+- Outliers removal
+- GPU support

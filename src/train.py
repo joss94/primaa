@@ -230,4 +230,3 @@ if __name__ == '__main__':
     # Second training with automatic labels added to dataset
     print("\n\nRetraining with auto generated labels\n\n")    
     train(data_dir, 'pseudo_labels.csv', model)
-    trainer.test(dataloaders=test_loader)

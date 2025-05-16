@@ -15,4 +15,4 @@ RUN pip install -r requirements.txt
 WORKDIR /repo
 
 ENTRYPOINT ["streamlit"]
-CMD ["run","src/app.py"]
+CMD ["run","app.py"]

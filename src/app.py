@@ -1,7 +1,7 @@
 import numpy as np
 import streamlit as st
 
-from wsi_parser import WSIParser
+from src.wsi_parser import WSIParser
 from PIL import Image
 
 # Create the parser object

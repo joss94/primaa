@@ -130,13 +130,19 @@ class WSIModel(L.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
-def train(data_dir, labels_filename, model):
+def train(
+    data_dir, 
+    labels_filename, 
+    model,
+    max_epochs=20,
+    ):
     """Executes the training pipeline with a given dataset
 
     Args:
         - data_dir: path to the data directory containing the tiles and the csv file
         - labels_filename: csv file to use for annotations. Can vary depending on whether we use pseudo labels or not
         - model: the model to use. Should be an instance of WSIModel
+        - max_epochs (int): The maximum number of epochs the training is allowed to last
     """
 
     # For reproducability
@@ -174,7 +180,7 @@ def train(data_dir, labels_filename, model):
 
     # Launch training
     logger = L.pytorch.loggers.tensorboard.TensorBoardLogger("tb_logs", name="WSIExperiments")
-    trainer = L.Trainer(max_epochs=20, callbacks=callbacks, logger=logger)
+    trainer = L.Trainer(max_epochs=max_epochs, callbacks=callbacks, logger=logger)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     # Test the model on the test set

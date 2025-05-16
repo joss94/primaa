@@ -222,7 +222,6 @@ def generate_pseudo_labels(data_dir, labels_filename, model):
 if __name__ == '__main__':
 
     data_dir = "/data/data/dataset_nuclei_tiles"
-    data_dir = "/Users/josselin/Downloads/primaa/data/dataset_nuclei_tiles"
 
     model = WSIModel()
 

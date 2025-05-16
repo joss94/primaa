@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torchvision
 from tqdm import tqdm
+from urllib.request import urlretrieve
 
 from src.train import WSIModel, get_preprocessing_transforms
 
@@ -15,6 +16,12 @@ from tiatoolbox.wsicore.wsireader import WSIReader
 class WSIParser:
 
     def __init__(self, batch_size = 16):
+        weights_path = "models/weights.ckpt"
+
+        if not os.path.exists(weights_path):
+            url = "https://www.nextcloud.curlyspiker.fr/s/MEdBEQiwL7XH7y3/download/weights.ckpt"
+            urlretrieve(url, weights_path)
+
         self.model = WSIModel.load_from_checkpoint(
             checkpoint_path="models/weights.ckpt",
             map_location=None,

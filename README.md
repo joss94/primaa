@@ -5,12 +5,17 @@ It contains a model that has been train to detect patches that contain nuclei, i
 
 ## Installation
 
+### Get the model weights
 Because of the limitations on the size of the GitHub repositories, the weights are not included here. 
-Pleases download them here (link to my self-hosted Nextcloud instance): https://www.nextcloud.curlyspiker.fr/s/MEdBEQiwL7XH7y3/download/weights.ckpt
-Please copy the file to ```primaa/models/weights.ckpt```
+They were instead stored in the cloud, in a self-hosted Nextcloud instance. 
+The weights should be automatically downloaded when first needed, but can also be installed manually with the following steps, if necessary:
 
+- Download ckpt file there: https://www.nextcloud.curlyspiker.fr/s/MEdBEQiwL7XH7y3/download/weights.ckpt
+- Copy the file to ```primaa/models/weights.ckpt```
+
+### Start up docker container
 The application runs on Linux under Docker. 
-To install, please run:
+To install, just run:
 
 ```docker compose up```
 

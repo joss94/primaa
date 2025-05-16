@@ -42,7 +42,7 @@ Then call the ```wsi_parser``` CLI tool:
 
 ```
 cd /repo
-python3 src/wsi_parser.py -i <path_to_ndpi> -o <path_to_png_output> -bs <batch_size>
+python3 -m src.wsi_parser -i <path_to_ndpi> -o <path_to_png_output> -bs <batch_size>
 ```
 
 Note that the application runs on CPU due to lack of information about the hardware it will run on. You can modify the Dockerfile for GPU-support in order to decreast the running time. 

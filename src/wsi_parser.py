@@ -8,7 +8,7 @@ import torch
 import torchvision
 from tqdm import tqdm
 
-from train import WSIModel, get_preprocessing_transforms
+from src.train import WSIModel, get_preprocessing_transforms
 
 from tiatoolbox.wsicore.wsireader import WSIReader
 
@@ -57,7 +57,7 @@ class WSIParser:
         grid_indices = [(i,j) for i in range(grid_sz[0]) for j in range(grid_sz[1])]
 
         # Final mask that will receive information about nuclei presence
-        mask = np.zeros(np.flip(grid_sz), dtype=np.bool)
+        mask = np.zeros(np.flip(grid_sz), dtype=bool)
 
         # Slide visualisation
         thumb = slide.slide_thumbnail(1.0)
@@ -119,7 +119,7 @@ class WSIParser:
 
         out = None
         print('Processing slide, this might take a while...')
-        for progress, mask, thumb in self.parse_slide_progress(path):
+        for _, mask, _ in self.parse_slide_progress(path):
             out = mask
         return out
 
